@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <title>Notatki</title>
+  <style>
+    body {
+      background-color: #e0f0ff;
+      font-family: sans-serif;
+      color: black;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 500px;
+      margin: auto;
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+
+    h1 {
+      font-size: 20px;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    .description {
+      font-size: 14px;
+      color: #555;
+      text-align: center;
+      margin-bottom: 20px;
+      font-style: italic;
+    }
+
+    label {
+      display: block;
+      margin-top: 10px;
+      font-size: 14px;
+    }
+
+    input, textarea, select, button {
+      width: 100%;
+      padding: 8px;
+      margin-top: 5px;
+      font-size: 14px;
+      border: 1px solid #aaa;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+
+    button {
+      background-color: #007bff;
+      color: white;
+      margin-top: 15px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    .spacer {
+      margin-top: 20px;
+    }
+
+    #delete-btn {
+      background-color: #dc3545;
+    }
+    #delete-btn:hover {
+      background-color: #a71d2a;
+    }
+
+    .format-btn {
+      width: auto;
+      padding: 6px 12px;
+      margin-right: 10px;
+      font-weight: bold;
+      user-select: none;
+    }
+
+    .color-picker {
+      width: auto;
+      padding: 8px;
+      margin-top: 5px;
+      margin-left: 10px;
+      vertical-align: middle;
+      border: 1px solid #aaa;
+      border-radius: 4px;
+      box-sizing: border-box;
+      cursor: pointer;
+    }
+
+    #title-label-container {
+      display: flex;
+      align-items: center;
+      margin-top: 10px;
+    }
+
+    .dates {
+      font-size: 12px;
+      color: #555;
+      margin-top: 10px;
+      text-align: right;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Notatki</h1>
+    <p class="description">Notatki służą do zapisywania Twoich złotych myśli i refleksji podczas czytania wpisów — miej je zawsze pod ręką.</p>
+
+    <div id="title-label-container">
+      <label for="project-name" style="margin: 0;">Nazwa projektu:</label>
+      <input type="color" id="title-color" class="color-picker" title="Wybierz kolor tytułu" value="#000000" />
+    </div>
+    <input type="text" id="project-name" placeholder="np. Poranna myśl" style="margin-top:5px;" />
+
+    <label for="note-text">Treść notatki:</label>
+
+    <div>
+      <button class="format-btn" type="button" onclick="formatText('bold')" title="Pogrubienie"><b>B</b></button>
+      <button class="format-btn" type="button" onclick="formatText('underline')" title="Podkreślenie"><u>U</u></button>
+    </div>
+
+    <textarea id="note-text" placeholder="Zapisz swoją notatkę..." style="margin-top:5px;"></textarea>
+
+    <div class="dates" id="note-dates"></div>
+
+    <button onclick="saveNote()">Zapisz notatkę</button>
+
+    <div class="spacer">
+      <label for="saved-projects">Wczytaj zapisany projekt:</label>
+      <select id="saved-projects" onchange="loadNote()">
+        <option value="">-- wybierz --</option>
+      </select>
+      <button id="delete-btn" onclick="deleteNote()">Usuń notatkę</button>
+    </div>
+  </div>
+
+  <script>
+    const nameInput = document.getElementById('project-name');
+    const noteInput = document.getElementById('note-text');
+    const select = document.getElementById('saved-projects');
+    const titleColorInput = document.getElementById('title-color');
+    const datesDiv = document.getElementById('note-dates');
+
+    function formatDate(date) {
+      return date.toLocaleString('pl-PL', {
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit'
+      });
+    }
+
+    function saveNote() {
+      const name = nameInput.value.trim();
+      const text = noteInput.value;
+      const color = titleColorInput.value;
+
+      if (!name) {
+        alert("Podaj nazwę projektu.");
+        return;
+      }
+
+      const existing = localStorage.getItem("note_" + name);
+      let created = new Date().toISOString();
+      if (existing) {
+        try {
+          const parsed = JSON.parse(existing);
+          if (parsed.created) {
+            created = parsed.created;
+          }
+        } catch {
+          // ignoruj błędy
+        }
+      }
+
+      const noteData = {
+        text,
+        color,
+        created,
+        updated: new Date().toISOString()
+      };
+
+      localStorage.setItem("note_" + name, JSON.stringify(noteData));
+      alert("Zapisano.");
+      updateProjectList();
+      showDates(noteData);
+    }
+
+    function loadNote() {
+      const name = select.value;
+      if (!name) {
+        nameInput.value = '';
+        noteInput.value = '';
+        titleColorInput.value = '#000000';
+        datesDiv.textContent = '';
+        return;
+      }
+
+      nameInput.value = name;
+      const noteDataStr = localStorage.getItem("note_" + name);
+      if(noteDataStr) {
+        try {
+          const noteData = JSON.parse(noteDataStr);
+          noteInput.value = noteData.text || '';
+          titleColorInput.value = noteData.color || '#000000';
+          showDates(noteData);
+        } catch {
+          noteInput.value = '';
+          titleColorInput.value = '#000000';
+          datesDiv.textContent = '';
+        }
+      } else {
+        noteInput.value = '';
+        titleColorInput.value = '#000000';
+        datesDiv.textContent = '';
+      }
+    }
+
+    function updateProjectList() {
+      const keys = Object.keys(localStorage).filter(k => k.startsWith("note_"));
+      select.innerHTML = '<option value="">-- wybierz --</option>';
+      keys.forEach(k => {
+        const name = k.replace("note_", "");
+        const option = document.createElement("option");
+        option.value = name;
+        option.textContent = name;
+        select.appendChild(option);
+      });
+    }
+
+    function deleteNote() {
+      const name = select.value;
+      if (!name) {
+        alert("Wybierz notatkę do usunięcia.");
+        return;
+      }
+      if(confirm(`Na pewno chcesz usunąć notatkę "${name}"?`)) {
+        localStorage.removeItem("note_" + name);
+        alert("Usunięto notatkę.");
+        nameInput.value = '';
+        noteInput.value = '';
+        titleColorInput.value = '#000000';
+        datesDiv.textContent = '';
+        updateProjectList();
+      }
+    }
+
+    function formatText(command) {
+      const textarea = noteInput;
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      if (start === end) return; // brak zaznaczenia
+
+      let selectedText = textarea.value.substring(start, end);
+      let beforeText = textarea.value.substring(0, start);
+      let afterText = textarea.value.substring(end);
+
+      if (command === 'bold') {
+        if(selectedText.startsWith("**") && selectedText.endsWith("**")) {
+          selectedText = selectedText.slice(2, -2);
+        } else {
+          selectedText = `**${selectedText}**`;
+        }
+      } else if (command === 'underline') {
+        if(selectedText.startsWith("__") && selectedText.endsWith("__")) {
+          selectedText = selectedText.slice(2, -2);
+        } else {
+          selectedText = `__${selectedText}__`;
+        }
+      }
+
+      textarea.value = beforeText + selectedText + afterText;
+
+      textarea.selectionStart = start;
+      textarea.selectionEnd = start + selectedText.length;
+      textarea.focus();
+    }
+
+    function showDates(noteData) {
+      let text = "";
+      if(noteData.created) {
+        const created = new Date(noteData.created);
+        text += `Utworzono: ${formatDate(created)}`;
+      }
+      if(noteData.updated) {
+        const updated = new Date(noteData.updated);
+        text += `<br>Ostatnia edycja: ${formatDate(updated)}`;
+      }
+      datesDiv.innerHTML = text;
+    }
+
+    window.onload = updateProjectList;
+  </script>
+</body>
+</html>
